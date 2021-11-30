@@ -16,12 +16,7 @@ jupyter:
 ### Sujet 1 : Calcule de la valeur actuelle probable d’une rente viagère à termes échus
 
 
-### élaboré par :
-- Ben Said Mohamed Amine
-- Bousselmi Mohamed
-- Hamila Youssef
-- Kandil Amal
-- Mhedhbi Nawres
+
 
 
 ### Question 1 : Télécharger les données pour le pays concerné.
