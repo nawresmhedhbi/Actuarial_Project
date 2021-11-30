@@ -1,0 +1,423 @@
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .Rmd
+      format_name: rmarkdown
+      format_version: '1.2'
+      jupytext_version: 1.4.2
+  kernelspec:
+    display_name: R
+    language: R
+    name: ir
+---
+
+### Projet Actuariat
+### Sujet 1 : Calcule de la valeur actuelle probable d’une rente viagère à termes échus
+
+
+### élaboré par :
+- Ben Said Mohamed Amine
+- Bousselmi Mohamed
+- Hamila Youssef
+- Kandil Amal
+- Mhedhbi Nawres
+
+
+### Question 1 : Télécharger les données pour le pays concerné.
+
+```{r}
+library(demography)
+library(StMoMo)
+#install.packages(StMoMo)
+```
+
+```{r}
+france = hmd.mx(country="FRATNP",username="nawres.mhedhbi@esprit.tn",password="1588118533",label="France")
+```
+
+### - Analyse des données:
+
+```{r}
+print(france)
+```
+
+- Notre base de données contient les taux de mortalité des femmes , hommes et de la population totale de l'année 1816 jusqu'au 2017 de l'âge 0 a l'âge 110.
+
+```{r}
+names(france) 
+```
+
+La classe demogdata est  une liste de 7 éléments contenant notamment des listes de 3 éléments sur la population homme, femme et totale
+
+```{r}
+# l'année 1950 pour les hommes
+france$rate$male[, "1950"]
+```
+
+```{r}
+# tracée de taux de mortalité en fonction de l’âge pour la cohorte 1950
+plot(x=france,series="male",ages=france$age[0:110],year=1950,max.age=max(france$age),plot.type="functions",main="taux de mortalité en fonction de l'âge pour l'année 1950")
+```
+
+- On remarque que ce taux est faible pour les jeunes âges et assez important pour les grandes tranches d'âges
+
+```{r}
+# l'année 1935 pour les hommes
+france$rate$male[, "1935"]
+```
+
+```{r}
+# tracée des taux de mortalité en fonction de l’âge pour la cohorte 1935
+plot(x=france,series="male",ages=france$age[0:110],year=1935,max.age=max(france$age),plot.type="functions",main="taux de mortalité en fonction de l'âge pour l'année 1935")
+```
+
+- On remarque que ce taux est faible pour les jeunes âges et assez important pour les grandes tranches d'âges
+
+```{r}
+# taux mortalite pour les hommes en fpnction de l' âge
+plot(france,series="male",datatype="rate", main="taux de mortalité pour les homme en fonction de l'age")
+```
+
+- le tracé des log taux de mortalité en fonction de l’âge montre aussi que le taux de mortalité augmente avec l'age
+
+```{r}
+#taux mortalite pour les hommes en fpnction en fonction des années
+
+plot(france,series="male",datatype="rate",plot.type="time", main="taux de mortalite pour les homme en fonction des années",xlab="Years")
+legend("bottomright",legend=unique(france$age),
+       col=rainbow(length(france$age)*1.25), ncol=20, pch=19, 
+       title="age", cex=0.4)
+```
+
+- Le  tracé des log taux de mortalité en fonction des années confirment que la mortalité est en baisse à tous les âges avec un comportement différent selon les âges
+- les couleurs representesnt les ages de moins eleves au nplus eleves , on peut remarquer que ce taux est faible pour les tranches d'ages jeunes et diminuent au cours du temps ainsi pour les personnes agees ce taux augmante de pmus en plus
+
+
+### Question 2 : En utilisant la procédure vue en cours pour estimer les taux de mortalité par maximum de vraisemblance,tracer les taux de mortalité en fonction de l’âge pour les deux cohortes concernées, pour les âges à partirde 60 ans. Tracer également les intervalles de confiance au seuil de 99%.
+
+```{r}
+install.packages("fitdistrplus")
+```
+
+```{r}
+
+france.smth.m <- smooth.demogdata(france, method="mspline")
+
+cohort <- function(year, rates, log=FALSE)
+{
+  xg <- diag(rates[, colnames(rates) >= year])
+  names(xg) <- paste(year, rownames(rates)[1:length(xg)], sep="-x=")
+  if(log)
+    xg <- log(xg)
+  xg
+}
+
+x=cohort(1935,france.smth.m$rate$male,log=T)
+x1=cohort(1950,france.smth.m$rate$male,log=T)
+
+
+
+# intervalle de confiance
+res35=t.test(x,conf.level = 0.99)
+res50=t.test(x1,conf.level = 0.99)
+
+
+ect35=sd(x)
+
+ect50=sd(x1)
+
+moy_emp35=mean(x)
+moy_emp50=mean(x1)
+
+
+IC_inf35 = moy_emp35-2.576*ect35/sqrt(2)
+IC_inf50 = moy_emp50-2.576*ect50/sqrt(2)
+
+IC_sup35 = moy_emp35+2.576*ect35/sqrt(2)
+IC_sup50 = moy_emp50+2.576*ect50/sqrt(2)
+
+IC35=c(IC_inf35,IC_sup35)
+IC50=c(IC_inf50,IC_sup50)
+
+###1935
+plot(cohort(1935, france.smth.m$rate$male, log=T),col="red", type="l",ylim=c(-11,4), main="France: Cohort 1935",xlab="age")
+abline(h=moy_emp35,col="black",lwd=3, lty=2)
+abline(h=IC_inf35,col="green",lwd=3, lty=2)
+abline(h=IC_sup35,col="green",lwd=3, lty=2)
+
+###1950
+plot(cohort(1950, france.smth.m$rate$male, log=T),col="blue", type="l",ylim=c(-11,4), main="France: Cohort 1950",xlab="age")
+abline(h=moy_emp50,col="black",lwd=3, lty=2)
+abline(h=IC_inf50,col="green",lwd=3, lty=2)
+abline(h=IC_sup50,col="green",lwd=3, lty=2)
+```
+
+### Question 3: Estimer les paramètres d’un modèle de Lee-Carter à partir des données historiques téléchargées (on pourra utiliser la fonction fit du package StMoMo). On prendra bien soin de:
+ - Lee Carter: une méthode d’extrapolation des tendances passées
+ 
+
+
+### - Commenter/justifier le choix de la plage d’âge et de la période choisie pour calibrer les données.
+
+
+### *Choix de la plage d'age:
+- le modèle Lee Carter se base sur l’hypothèse d’homoscédasticité des taux de mortalité: pour les âges éléves le nombre d’observation est plus réduit et le log de la force de mortalité est donc plus variable.D'ou On a choisie comme plage d'age de 0 a 65ans.
+
+
+### *Choix de la période choisie:
+
+
+### - Ajustement des parametres Kt:
+
+```{r}
+franceMale <- StMoMoData(france, series = "male")
+```
+
+```{r}
+france.smth.m <- smooth.demogdata(france, method="mspline")
+frlc.none <- lca(france.smth.m, adjust="none",series="male")
+frlc.dt <- lca(france.smth.m, adjust="dt",series="male")
+frlc.dxt <- lca(france.smth.m, adjust="dxt",series="male")
+frlc.e0 <- lca(france.smth.m, adjust="e0",series="male")
+```
+
+```{r}
+par(mfrow=c(1,1))
+plot(frlc.none$kt,col="black")
+lines(frlc.dt$kt,col="blue")
+lines(frlc.dxt$kt,col="red")
+lines(frlc.e0$kt,col="green")
+legend("topright" , c("none","dt","dxt","e0"), cex=0.8,col=c("black","blue","red","green"),lty=1);
+```
+
+- La valeur kt est stable avant 1900 puis elle baisse au cours du temps ,on peut expliquer ce phénomene par les trois grandes guerres auxquelles la France a participé et qui présentent des pics de kt. 
+- On constate qu'aprés l'année 1945(le dernier pic des valeurs de Kt et la 2ème guerre mondiale),l'existance d'une forte diminution des estimations de kt . C'est pour cela nous allons restreindre notre étude aux années 1946 - 2017( fin des observations).
+
+
+### Applicatuon de Lee-Carter:
+
+```{r}
+france46_2017 <- extract.years(france, years=1946:2017) #extraire la periode
+FRStMoMo <- StMoMoData(france, series = "male") #charger les données des hommes pour le package StMoMo
+LC1 <- lc(link="logit")
+LCfit1<-fit(LC1, data = FRStMoMo,ages.fit = 0:65,years = 1946:2017 )
+plot(LCfit1)
+
+
+
+
+```
+
+### - Commenter les résultats obtenus en affichant les paramètres estimés.
+
+
+Ax est liée à l'effet de l'âge sur les taux de mortalité:
+* On observe une fonction décroissante de ce taux au niveau de la plage d'âge 0-10 puis croissante pour les adolescents(de 10 à 20) ensuite pour la tranche du 20 à 30 il y a une augmentation du taux lié aux accidents enfin on a une fonction croissante jusqu'à la fin  de la vie
+
+
+Kt Evolution temporelle du taux de mortalité :  
+* On observe que Kt a une tendance à la baisse avec l'augmentation du temps de 1946 à 2017.                                                                             
+Bx : Vitesse de reduction de la mortalite par âge: 
+* Bx est toujours positif mais la valeur ne cesse de diminuer avec l’âge.
+
+
+### -Evaluation l'ajustement du modèle : 
+
+```{r}
+LCresT <- residuals(LCfit1)
+plot(LCresT)
+```
+
+- D’après la lecture des graphiques nous remarquons que les résidus du modèle sont identiquement distribués selon l’âge et l’année autour de la droite horizontale passant par 0. Ceci montre bien que l’espérance des erreurs est bien nulle et que la variance est constante ce qui confirme l’homoscédasticité des taux de mortalité supposée initialement. 
+
+
+#### Question 4: Afficher les log taux de mortalités historiques des deux cohortes à l’aide de la fonction extractcohort, et comparer avec les taux estimés en question 1.
+
+```{r}
+#cohorte d’assurés hommes nés en 1950 contractés un contrat en 2015:
+chosen_cohort=1950      
+plot(0:65, extractCohort(fitted(LCfit1, type = "rates"),  
+                        cohort = chosen_cohort),
+     type = "l", log = "y", xlab = "age", ylab  = "Mortality rate",
+     main = "Mortality rates for the 1950 cohort",
+     xlim = c(0,65),ylim = c(5e-04, 0.07))
+
+
+```
+
+```{r}
+#les log taux de mortalités historiques de la cohorte d’assurés hommes nés en 1935 ayant contractés un contrat en 2000:
+plot(0:65, extractCohort(fitted(LCfit1, type = "rates"), cohort = 1935), 
+     type = "l", log = "y", xlab = "age", ylab = "Mortality rate", 
+     main = "Mortality rates for the 1935 cohort", 
+     xlim = c(0,65), ylim = c(5e-04, 0.07))
+```
+
+### Question 5: Simuler un nombre N=5000 de trajectoires projetées sur 25 ans des taux de mortalité futurs à l’aide de la fonction simulate. Afficher les log taux de mortalités historiques et projetés pour les deux cohortes, à partirde la date de début du contrat.
+
+
+- Simulation de N=5000 de trajectoires projetées sur 25 ans des taux de mortalité futurs
+
+```{r}
+LCsim1950 <- simulate(LCfit1, nsim=5000, h=25, cohort = 1950)
+plot(LCfit1$years, LCfit1$kt[1,],xlim=c(2015,2040), ylim=c(-255,255),
+     type="l", xlab="year", ylab="kt",
+     main="Affichage de taux de mortalité historique et projetée \n pour la cohorte 1950")
+matlines(LCsim1950$kt.s$years, LCsim1950$kt.s$sim[1,,1:20],
+         type="l", lty=1)
+```
+
+```{r}
+#2 éme cohort d’assurés hommes nés en 1935 ayant contractés un contrat en 2000
+LCsim1935 <- simulate(LCfit1, nsim=5000, h=25,cohort=1935) #Simulation d'un nombre N=5000 de trajectoires projetées sur 25 ans des taux de mortalité futurs
+#les log taux de mortalités historiques et projetés pour cette cohorte, à partir de la date de début du contrat 2000
+plot(LCfit1$years, LCfit1$kt[1,],xlim=c(2000,2025), ylim=c(-255,200),
+     type="l", xlab="year", ylab="kt",
+     main="Affichage de taux de mortalité historique et projetée \n pour la cohorte  1935")
+matlines(LCsim1935$kt.s$years, LCsim1935$kt.s$sim[1,,1:20],
+         type="l", lty=1)
+```
+
+- On remarque pour les 25 trajectoires, que l'évolution temporelle du taux de mortalité diminue au cours du temps pour les 2 cohortes
+
+
+### Question 6: Calculer la valeur actuelle probable des deux contrats (à la date de début du contrat) pour chacun des scénarios de mortalité générés à la question précédente. Donner la valeur moyenne obtenue et sa variance.
+### - Proposer une tarification pour chaque produit.
+
+```{r}
+install.packages('lifecontingencies')
+```
+
+```{r}
+library(lifecontingencies)
+```
+
+- La rente viagère c'est l'abandon d un capital au profil de l'assureur en échange d'un versement régulier et à vie d'une somme qui sera revalorisé  au fil des années.on parle de la conversion d'un capital en rente viagère.au décès du bénéficiaire,le versement de la rente est généralement arrêté.
+- Elle est servie tant que le bénéficaire est en vie
+- La valeur Acutelle probable d'une rente viagère versée à terme échu : ax = sum(Ex) de i=1 jusq'au +oo  
+
+
+- valeur Acutelle probable pour la  cohorte 1950:
+
+```{r}
+#la valeur actuelle probable pour les taux projetees de la cohorte 1950:
+set.seed(29)
+lc_historical_rates <- extractCohort(fitted(LCfit1, type = "rates"),cohort = 1950)
+
+lc_rates_1950 <- c(lc_historical_rates,LCsim1950$rates)
+
+lc_qx_1950<-mx2qx(lc_rates_1950)
+#transformation en lifetable:
+lc_lifetable_1950<-probs2lifetable(probs=lc_qx_1950,type = "qx",
+  name = paste("LC","1950","lt",sep="_"))
+
+lc_acttbl_1950<-new("actuarialtable",x=lc_lifetable_1950@x,lx=lc_lifetable_1950@lx,name="LC ActTbl")
+VAP_proj_1950=axn(actuarialtable = lc_acttbl_1950,x=65)
+```
+
+```{r}
+VAP_proj_1950
+```
+
+- valeur Acutelle probable pour la cohorte 1935:
+
+
+```{r}
+#la valeur actuelle probable pour les taux projetees de la cohorte 1950:
+set.seed(29)
+lc_historical_rates <- extractCohort(fitted(LCfit1, type = "rates"),cohort = 1935)
+
+lc_rates_1935 <- c(lc_historical_rates,LCsim1935$rates)
+
+lc_qx_1935<-mx2qx(lc_rates_1935)
+#transformation en lifetable:
+lc_lifetable_1935<-probs2lifetable(probs=lc_qx_1935,type = "qx",
+  name = paste("LC","1935","lt",sep="_"))
+
+lc_acttbl_1935<-new("actuarialtable",x=lc_lifetable_1935@x,lx=lc_lifetable_1935@lx,name="LC ActTbl")
+VAP_proj_1935=axn(actuarialtable = lc_acttbl_1935,x=65)
+```
+
+```{r}
+VAP_proj_1935
+```
+
+- La Valeur Moyenne Obtenue :
+
+```{r}
+moyenne = mean(VAP_proj_1935,VAP_proj_1950)
+```
+
+```{r}
+moyenne
+```
+
+- La Variance Obtenue:
+
+```{r}
+variance = var(VAP_hist_1950,VAP_proj_1935)
+```
+
+```{r}
+variance
+```
+
+- Tarification:
+
+
+- Pour cohorte 1950 ayant un contrat en 2015:
+
+```{r}
+#Calcul de la prime pure :
+#pour les parametres :
+# x : Âge de l'assuré en 2015 
+#m : Report de la période : 
+#n : Période de couverture : dans notre cas égale a 25 puisque on a fait une projection de 25 ans pour cette cohorte 
+prime_pure_coh_2015 = axn(lc_acttbl_1950, x=65, m=25)/axn(lc_acttbl_1950, x=65, m=1,n=25)
+
+```
+
+```{r}
+prime_pure_coh_2015 
+```
+
+- Pour cohorte 1935 ayant un contrat en 2000:
+
+```{r}
+#Calcul de la prime pure :
+#pour les parametres :
+# x : Âge de l'assuré en 2000 
+#m : Report de la période : 
+#n : Période de couverture : dans notre cas égale a 25 puisque on a fait une projection de 25 ans pour cette cohorte 
+prime_pure_coh_2000 = axn(lc_acttbl_1935, x=65, m=25)/axn(lc_acttbl_1935, x=65, m=1,n=25)
+```
+
+```{r}
+prime_pure_coh_2000 
+```
+
+### Question 7: Interpréter la différence obtenue selon les deux cohortes.
+
+
+- On peut constater que la valeur actuelle probable et la tarification ont presque les memes valeurs quelque soit la cohorte donc on peut dire que la tarification ne depnds pas d'une telle cohorte mais elle depend de l'age a la date de debut de contrat .
+
+
+### Question 8 : Quelles sont les autres sources d’incertitudes ? Développer cette question.
+
+<!-- #region -->
+- Sources d'incertitudes:
+
+-- limites Lee Carter:
+
+
+* l’hypothèse d'homoscédasticité des erreurs requise pour l'estimation par moindres carrés n'est pas vérifiée  car la variance de log taux de mortalité augmente  aux âges élevés vu la baisse des du nombre des individus à ces âges.
+* Lee-carter classique sert à calculer dans le futur des tendances conclues du passé en utilisant un seul paramètre temporel ce qui peut être rigide dans certaines cas.
+* pour lee carter la sensibilité de la mortalité βx est considéré constante au cours du temps ce qui signifie que l amélioration de la mortalité est la même au cours du temps quelles que soient les dates.
+
+
+
+-- limites Simulations:
+
+* si la simulation n'est pas bien faite,ceci peut entraîner des erreurs de projections et le calcul d'indicateurs comme l'espérance de vie serait imprécis.
+<!-- #endregion -->
